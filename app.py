@@ -2,10 +2,13 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 
 # Import fungsi dari file yang ada di dalam folder 'pages'
-from pages.dashboard import tampilkan_dashboard
+from pages.dashboard import tampilkan_dashboard, load_data
 from pages.profil import tampilkan_profil
 
 st.set_page_config(layout="wide")
+df_klasifikasi = load_data()
+min_date_klasifikasi = df_klasifikasi['tanggal'].min().date()
+max_date_klasifikasi = df_klasifikasi['tanggal'].max().date()
 
 # Menyembunyikan menu bawaan folder 'pages'
 st.markdown("""
@@ -29,6 +32,9 @@ with st.sidebar:
             "nav-link-selected": {"background-color": "#0056b3"}, # Saya ubah warnanya sedikit biar mirip gambar referensimu (biru)
         }
     )
+    # st.text("Rentang Data Klasifikasi")
+    # start_date_klasfikasi = st.sidebar.date_input("Start" , min_date_klasifikasi, min_value=min_date_klasifikasi, max_value=max_date_klasifikasi)
+    # end_date_klasfikasi = st.sidebar.date_input("End" , max_date_klasifikasi, min_value=min_date_klasifikasi, max_value=max_date_klasifikasi)
 
 # Logika untuk menampilkan konten
 if pilihan == "Dashboard":
