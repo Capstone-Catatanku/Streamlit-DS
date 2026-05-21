@@ -9,8 +9,8 @@ import streamlit.components.v1 as components
 
 # load data
 @st.cache_data
-def load_data() :
-    url = "https://raw.githubusercontent.com/Capstone-Catatanku/Data-Science/main/Data-clean/Data-clean.csv"
+def load_data_klasifikasi() :
+    url = "https://raw.githubusercontent.com/Capstone-Catatanku/Data-Science/refs/heads/main/Data-clean/Data-clean.csv"
     df = pd.read_csv(url)
     df['tanggal'] =  pd.to_datetime(df['tanggal'])   
     df['tahun'] = df['tanggal'].dt.year
@@ -20,7 +20,7 @@ def load_data() :
     df['tipe_hari'] = df['hari_minggu'].apply(lambda x: 'Akhir Pekan' if x >= 5 else 'Hari Kerja')
     return df
 
-df = load_data()
+df = load_data_klasifikasi()
 
 
 def tampilkan_dashboard():
