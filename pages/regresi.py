@@ -288,13 +288,6 @@ def tampilan_regresi():
             """, unsafe_allow_html=True)
 
     # ==========================================
-    # TAB 3: A/B TESTING (Sesuai Permintaan Dikosongkan Dulu)
-    # ==========================================
-    with tab3:
-        st.subheader("Uji Hipotesis (A/B Testing)")
-        st.info("Tab Belum Tersedia")
-
-    # ==========================================
     # TAB 4: DATA
     # ==========================================
     with tab4:
