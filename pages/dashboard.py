@@ -521,14 +521,14 @@ def tampilkan_dashboard():
             with st.expander("Insight Pertanyaan #3", expanded=False):
                 st.write(f"**Total outlier (1 tahun):** Rp {total_outlier:,.0f}")
                 st.write(f"**Jumlah transaksi outlier:** {len(outliers)} transaksi")
-                st.write(f"**Total yang BISA dicegah:** Rp {total_bisa_dicegah:,.0f} ({persen_bisa_dicegah:.1f}%)")
+                st.write(f"**Total yang bisa dicegah:** Rp {total_bisa_dicegah:,.0f} ({persen_bisa_dicegah:.1f}%)")
             
                 if len(bisa_dicegah) > 0:
                     st.write("\n**Daftar transaksi prioritas yang bisa dicegah:**")
                     st.dataframe(bisa_dicegah[['tanggal', 'deskripsi_transaksi', 'nominal']].head(5), use_container_width=True, hide_index=True)
             
                 if persen_bisa_dicegah > 30:
-                    st.success(f"**Rekomendasi:** Terapkan aturan 'tunggu 3 hari' untuk pembelian >Rp500rb di kategori Belanja. Potensi hemat Rp {total_bisa_dicegah:,.0f}/tahun.")
+                    st.success(f"**Rekomendasi:** Terapkan aturan 'tunggu 3 hari' untuk pembelian >Rp500rb di kategori Belanja. Potensi hemat Rp {total_bisa_dicegah:,.0f} Dari semua data")
                 else:
                     st.info("**Rekomendasi:** Outlier dominan dari kategori selain Belanja. Perlu investigasi lebih lanjut.")
     
