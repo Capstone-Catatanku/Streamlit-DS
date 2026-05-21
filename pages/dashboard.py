@@ -336,12 +336,9 @@ def tampilkan_dashboard():
         st.download_button('Download Dataset (CSV)' , csv , 'data_keuangan.csv' , 'text/csv')
         st.dataframe(df , use_container_width=True)
 
-    # ============================================
-# TAB 2: VISUALISASI PERTANYAAN BISNIS
-# ============================================
 
     with tab2:
-        st.header("📊 Visualisasi Pertanyaan Bisnis")
+        st.header("Visualisasi Pertanyaan Bisnis")
     
         st.markdown("""
             Berikut adalah visualisasi yang menjawab **3 pertanyaan bisnis** utama:
@@ -351,10 +348,6 @@ def tampilkan_dashboard():
             """)
     
         st.markdown("---")
-    
-    # ============================================
-    # PERTANYAAN BISNIS #1
-    # ============================================
     
         st.subheader("Pertanyaan #1: Bulan dengan Total Pengeluaran Tertinggi")
         st.markdown("*Di bulan apa total pengeluaran tertinggi terjadi dalam dua tahun terakhir?*")
@@ -477,10 +470,6 @@ def tampilkan_dashboard():
     
         st.markdown("---")
     
-    # ============================================
-    # PERTANYAAN BISNIS #3
-    # ============================================
-    
         st.subheader("Pertanyaan #3: Analisis Outlier")
         st.markdown("*Berapa total kerugian dari transaksi outlier dan berapa yang bisa dicegah?*")
     
@@ -544,6 +533,5 @@ def tampilkan_dashboard():
                     st.info("**Rekomendasi:** Outlier dominan dari kategori selain Belanja. Perlu investigasi lebih lanjut.")
     
 
-# Eksekusi fungsi jika file ini dijalankan langsung
 if __name__ == "__main__":
     tampilkan_dashboard()
