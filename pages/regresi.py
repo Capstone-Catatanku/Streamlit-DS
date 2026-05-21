@@ -100,7 +100,7 @@ def tampilan_regresi():
         
     st.markdown("---")    
     
-    tab1,tab2,tab3,tab4 = st.tabs(['EDA' , 'Visualisasi Pertanyaan Bisnis','A/B Testing' , 'Data'])
+    tab1,tab2,tab4 = st.tabs(['EDA' , 'Visualisasi Pertanyaan Bisnis' , 'Data'])
 
     # ==========================================
     # TAB 1: EDA 
