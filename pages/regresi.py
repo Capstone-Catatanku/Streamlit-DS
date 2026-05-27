@@ -1,299 +1,490 @@
-import streamlit as st 
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
+import streamlit as st
 import plotly.express as px
 
 @st.cache_data
 def load_data_regresi():
-    url = "https://raw.githubusercontent.com/Capstone-Catatanku/Data-Science-Tabungan/refs/heads/main/Clean-data/Data_Clean.csv" 
+
+    url = "https://raw.githubusercontent.com/Capstone-Catatanku/Data-Science-Tabungan/refs/heads/main/Clean-data/Data_Progressive_Clean.csv"
+
     df = pd.read_csv(url)
-    kolom_log = [
-        'target_nominal',
-        'nominal_nabung',
-        'total_terkumpul',
-        'sisa_target',
-    ]
-    for kolom in kolom_log:
-        df[kolom] = np.expm1(df[kolom])
-    df['tanggal_nabung'] =  pd.to_datetime(df['tanggal_nabung'])   
+
+    df['tanggal_nabung'] = pd.to_datetime(df['tanggal_nabung'])
+
     df['tahun'] = df['tanggal_nabung'].dt.year
     df['bulan'] = df['tanggal_nabung'].dt.month
     df['nama_bulan'] = df['tanggal_nabung'].dt.strftime('%b')
+
     df['hari_minggu'] = df['tanggal_nabung'].dt.dayofweek
-    df['tipe_hari'] = df['hari_minggu'].apply(lambda x: 'Akhir Pekan' if x >= 5 else 'Hari Kerja')
+
+    df['tipe_hari'] = df['hari_minggu'].apply(
+        lambda x: 'Akhir Pekan' if x >= 5 else 'Hari Kerja'
+    )
+
+    df['lama_menabung'] = (
+        df.groupby('id_tabungan')['tanggal_nabung']
+        .transform(lambda x: (x.max() - x.min()).days)
+    )
+
+    df['hasil_akhir'] = (
+        df.groupby('id_tabungan')['status']
+        .transform(lambda x: 'Selesai' if (x == 'Selesai').any() else 'Belum Selesai')
+    )
+
+    df = df.sort_values(['id_tabungan', 'tanggal_nabung'])
+
+    df['jarak_hari_nabung'] = (
+        df.groupby('id_tabungan')['tanggal_nabung']
+        .diff()
+        .dt.days
+    )
+
+    df['jarak_hari_nabung'] = df['jarak_hari_nabung'].fillna(0)
+
     return df
 
-# df menjadi variabel global
+
 df = load_data_regresi()
 
-# Hapus (df) dari sini, cukup kurung kosong ()
+
 def tampilan_regresi():
 
-    # Title
     st.title("Dashboard Analytics Regresi Tabungan")
 
-    # --- 1. RINGKASAN KEUANGAN (KPI) ---
     st.subheader("Ringkasan Keuangan")
-    col1, col2 = st.columns(2)
+
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        total_tabungan = df['target_nominal'].sum()
-        st.metric("Total Target Tabungan",f"Rp {total_tabungan:,.0f}")
+        st.metric(
+            "Total Rencana Target",
+            f"Rp {df['target_nominal'].sum():,.0f}"
+        )
 
     with col2:
-        jumlah_transaksi = len(df)
-        st.metric("Jumlah Transaksi",f"{jumlah_transaksi:,} Transaksi")
-        
+        st.metric(
+            "Total Dana Terkumpul",
+            f"Rp {df['total_terkumpul'].sum():,.0f}"
+        )
+
+    with col3:
+
+        jumlah_id_unik = df['id_tabungan'].nunique()
+
+        st.metric(
+            "Jumlah Rencana Goal",
+            f"{jumlah_id_unik:,} Goal"
+        )
+
+    with col4:
+
+        st.metric(
+            "Total Dataset",
+            f"{len(df):,} Kali"
+        )
+
+    st.subheader("Analisis Tren Waktu Menabung")
+
+    col_freq1, col_freq2 = st.columns(2)
+
+    with col_freq1:
+
+        st.write("**Frekuensi Transaksi per Bulan**")
+
+        freq_bulan = (
+            df.groupby(['bulan', 'nama_bulan'])
+            .size()
+            .reset_index(name='jumlah_transaksi')
+        )
+
+        freq_bulan = freq_bulan.sort_values('bulan')
+
+        transaksi_terbanyak = freq_bulan['jumlah_transaksi'].max()
+
+        warna_bulan = [
+            '#f59e0b' if val == transaksi_terbanyak else '#8b5cf6'
+            for val in freq_bulan['jumlah_transaksi']
+        ]
+
+        fig_bar = px.bar(
+            freq_bulan,
+            x='nama_bulan',
+            y='jumlah_transaksi',
+            text_auto=True,
+            title="Jumlah Transaksi Berdasarkan Bulan"
+        )
+
+        fig_bar.update_traces(
+            marker_color=warna_bulan,
+            textposition='outside'
+        )
+
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with col_freq2:
+
+        st.write("**Total Nominal Nabung per Bulan**")
+
+        nominal_bulan = (
+            df.groupby(['bulan', 'nama_bulan'])['nominal_nabung']
+            .sum()
+            .reset_index(name='total_nominal')
+        )
+
+        nominal_bulan = nominal_bulan.sort_values(by='bulan')
+
+        nominal_bulan['teks_display'] = nominal_bulan[
+            'total_nominal'
+        ].apply(lambda x: f"Rp {x:,.0f}")
+
+        nilai_tertinggi = nominal_bulan['total_nominal'].max()
+
+        warna_bar = [
+            '#f59e0b' if val == nilai_tertinggi else '#10b981'
+            for val in nominal_bulan['total_nominal']
+        ]
+
+        fig_bar_bulan = px.bar(
+            nominal_bulan,
+            x='nama_bulan',
+            y='total_nominal',
+            text='teks_display',
+            title="Total Nominal Tabungan Setiap Bulan"
+        )
+
+        fig_bar_bulan.update_traces(
+            marker_color=warna_bar,
+            textposition='outside'
+        )
+
+        st.plotly_chart(fig_bar_bulan, use_container_width=True)
 
     st.markdown("---")
-    
-    # --- 4. VISUALISASI FREKUENSI ---
-    st.subheader("Analisis Frekuensi Menabung")
-    
-    col_freq1, col_freq2 = st.columns(2)
-    
-    with col_freq1:
-        st.write("**Frekuensi Transaksi per Bulan**")
-        
 
-        freq_bulan = df.groupby(['bulan', 'nama_bulan']).size().reset_index(name='jumlah_transaksi')
-        freq_bulan = freq_bulan.sort_values('bulan')
-        
-        transaksi_terbanyak = freq_bulan['jumlah_transaksi'].max()
-        
-        warna_bulan = ['#f59e0b' if val == transaksi_terbanyak else '#8b5cf6' for val in freq_bulan['jumlah_transaksi']]
-        
-        fig_bar = px.bar(
-            freq_bulan, 
-            x='nama_bulan', 
-            y='jumlah_transaksi',
-            text_auto=True, 
-            title="Jumlah Transaksi Berdasarkan Bulan",
-            labels={'nama_bulan': 'Bulan', 'jumlah_transaksi': 'Jumlah Transaksi'},)
-        
-        fig_bar.update_traces(marker_color=warna_bulan, textposition='outside')
-        fig_bar.update_layout(margin=dict(t=40, l=0, r=0, b=0))
-        st.plotly_chart(fig_bar, use_container_width=True)
-        
-    with col_freq2:
-        st.write("**Total Nominal Nabung per Bulan**")
-        
-        nominal_bulan = df.groupby(['bulan', 'nama_bulan'])['nominal_nabung'].sum().reset_index(name='total_nominal')
-        nominal_bulan = nominal_bulan.sort_values(by='bulan')
-        nominal_bulan['teks_display'] = nominal_bulan['total_nominal'].apply(lambda x: f"Rp {x:,.0f}")
-        nilai_tertinggi = nominal_bulan['total_nominal'].max()
-        
-        warna_bar = ['#f59e0b' if val == nilai_tertinggi else '#10b981' for val in nominal_bulan['total_nominal']]
-        fig_bar_bulan = px.bar(
-            nominal_bulan, 
-            x='nama_bulan', 
-            y='total_nominal',
-            text='teks_display', 
-            title="Total Nominal Tabungan Setiap Bulan",
-            labels={'nama_bulan': 'Bulan', 'total_nominal': 'Total Uang (Rp)'})
-
-        fig_bar_bulan.update_traces(marker_color=warna_bar, textposition='outside')
-        
-        fig_bar_bulan.update_layout(margin=dict(t=40, l=0, r=0, b=0))
-        
-        st.plotly_chart(fig_bar_bulan, use_container_width=True)
-        
-    st.markdown("---")    
+    tab1, tab2, tab3 = st.tabs([
+        'EDA',
+        'Visualisasi Pertanyaan Bisnis',
+        'Data'
+    ])
     
-    tab1,tab2,tab4 = st.tabs(['EDA' , 'Visualisasi Pertanyaan Bisnis' , 'Data'])
-
-    # ==========================================
-    # TAB 1: EDA 
-    # ==========================================
+    # EDA
     with tab1:
-        # Membuat Sub-Tabs di dalam Tab EDA
-        sub_tab1, sub_tab2, sub_tab3 = st.tabs([
-            "Overview ", 
-            "Segmentasi Pengguna", 
-            "Distribusi & Outlier"
+
+        sub_tab1, sub_tab2 = st.tabs([
+            "Overview & Persentase Terkumpul",
+            "Distribusi Target Nominal"
         ])
-        
-        # --- SUB-TAB 1: OVERVIEW  ---
+
         with sub_tab1:
-            st.subheader("🎯 Ketercapaian Target Tabungan")
-            total_target_keseluruhan = df['target_nominal'].sum()
-            total_sisa_keseluruhan = df['sisa_target'].sum()
-            persentase_sisa = (total_sisa_keseluruhan / total_target_keseluruhan) * 100 if total_target_keseluruhan > 0 else 0
-            persentase_sisa = max(0, min(100, persentase_sisa))
-            
-            col_prog, _ = st.columns([1, 1])
-            with col_prog:
-                st.metric("Sisa Target Dari Total Tabungan", f"{persentase_sisa:.2f}%")
-                st.progress(int(persentase_sisa))
-                st.caption("Menunjukkan total kekurangan dana dibandingkan dengan Total Target keseluruhan.")
-                
-            st.subheader("Insight Exploratory Data Analysis")
-            col_eda1, col_eda2 = st.columns(2)
-        
-            with col_eda1:
+
+            st.subheader(
+                "Visualisasi Distribusi persentase_terkumpul"
+            )
+
+            col_grafik1, col_text1 = st.columns([1.3, 1])
+
+            with col_grafik1:
+
+                fig, ax = plt.subplots(figsize=(8, 5))
+
+                sns.histplot(
+                    data=df,
+                    x='persentase_terkumpul',
+                    bins=30,
+                    kde=True,
+                    color='skyblue',
+                    edgecolor='black',
+                    alpha=0.7,
+                    ax=ax
+                )
+
+                ax.set_title(
+                    "Visualisasi Distribusi persentase_terkumpul"
+                )
+
+                ax.set_xlabel("Persentase (%)")
+                ax.set_ylabel("Frekuensi")
+
+                ax.grid(
+                    True,
+                    linestyle='--',
+                    alpha=0.4
+                )
+
+                st.pyplot(fig)
+
+            with col_text1:
+
                 st.markdown("""
-                **1. Distribusi Skewed & Outlier Besar**
-                - Distribusi data sangat *skewed* ke kanan. Mayoritas user menabung dengan nominal kecil, namun terdapat outlier ekstrem dengan setoran hingga miliaran rupiah.
-                - Contoh: Median nominal setoran hanya **Rp 88.321**, namun rata-ratanya tertarik ke angka **Rp 4.545.024** (akibat outlier ekstrem hingga Rp 8,4 Miliar).
-                
-                **2. Kesenjangan Progress (Gap)**
-                - Terdapat gap besar antar pengguna. Sebagian besar masih memiliki sisa target yang relatif kecil (< Rp 500 ribu), namun ada segelintir user yang masih harus mengejar target miliaran.
-                """)
-            
-            with col_eda2:
-                st.markdown("""
-                **3. Analisis Frekuensi Menabung**
-                - Mayoritas user (berdasarkan median) hanya tercatat menabung **1 kali**.
-                - Rata-rata frekuensi menabung mencapai **33 kali** per tujuan, menandakan adanya kelompok kecil user yang sangat konsisten, sementara mayoritas pasif.
-                
-                **4. Distribusi Waktu (Tahun)**
-                - Rentang data dimulai dari 4 Agustus 2019 hingga 31 Desember 2024.
-                - Puncak frekuensi jumlah transaksi tabungan terbanyak terjadi pada tahun **2023**.
+                **Insight Persentase Terkumpul:**
+                - Rata-rata persentase tabungan yang terkumpul sekitar 50%.
+                - Median 49% menunjukkan sebagian besar pengguna sudah mencapai hampir separuh target.
+                - Distribusi terlihat cukup merata di rentang 0–100%.
                 """)
 
-        # --- SUB-TAB 2: SEGMENTASI PENGGUNA ---
         with sub_tab2:
-            st.subheader("Kategori User Berdasarkan Kasta Keuangan")
-            
-            def get_segment(target):
-                if target <= 1000000:
-                    return 'Micro (<=1Jt)'
-                elif target <= 10000000:
-                    return 'Small (1-10Jt)'
-                elif target <= 100000000:
-                    return 'Medium (10-100Jt)'
-                else:
-                    return 'Sultan (>100Jt)'
-                    
-            df_segment = df.copy()
-            df_segment['user_segment'] = df_segment['target_nominal'].apply(get_segment)
-            segment_counts = df_segment['user_segment'].value_counts().reset_index()
-            segment_counts.columns = ['Segmen', 'Jumlah']
-            
-            col_segmen_grafik, col_segmen_text = st.columns([1.2, 1])
-            
-            with col_segmen_grafik:
-                fig_pie_segmen = px.pie(
-                    segment_counts, names='Segmen', values='Jumlah', 
-                    hole=0.4, 
-                    color_discrete_sequence=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2']
-                )
-                fig_pie_segmen.update_layout(margin=dict(t=10, b=0, l=0, r=0))
-                st.plotly_chart(fig_pie_segmen, use_container_width=True)
-                
-            with col_segmen_text:
-                st.markdown("""
-                **Insight Kategori User:**
-                - **Dominasi Kelas Finansial:** Pembagian kelompok ini membantu model memahami profil risiko dan kebiasaan menabung berdasarkan target nominalnya.
-                - **Aktivitas Transaksi:** Mayoritas catatan data bertumpu pada segmen tertentu, yang memperlihatkan adanya variasi motivasi menabung yang kontras di dalam aplikasi.
-                - **Intensitas Tabungan:** Berdasarkan data frekuensi, sebagian besar user memiliki median transaksi sebanyak **1 kali**, mengindikasikan banyak akun yang belum konsisten memanfaatkan fitur goals jangka panjang.
-                """)
 
-        # --- SUB-TAB 3: DISTRIBUSI & OUTLIER ---
-        with sub_tab3:
-            st.subheader("Analisis Sebaran Variabel Finansial")
-            
-            col_box_grafik, col_box_text = st.columns([1.2, 1])
-            
-            with col_box_grafik:
-                df_box = df.copy()
-                df_box['Log Target Nominal'] = np.log1p(df_box['target_nominal'])
-                
-                fig_box = px.box(
-                    df_box, y='Log Target Nominal', 
-                    color_discrete_sequence=['#8b5cf6'],
-                    points="all"
+            st.subheader(
+                "Visualisasi Distribusi Target Nominal"
+            )
+
+            col_grafik2, col_text2 = st.columns([1.3, 1])
+
+            with col_grafik2:
+
+                fig, ax = plt.subplots(figsize=(8, 5))
+
+                sns.histplot(
+                    df['target_nominal'],
+                    bins=30,
+                    kde=True,
+                    color='skyblue',
+                    edgecolor='black',
+                    alpha=0.7,
+                    ax=ax
                 )
-                fig_box.update_layout(margin=dict(t=10, b=0, l=0, r=0))
-                st.plotly_chart(fig_box, use_container_width=True)
-                
-            with col_box_text:
+
+                ax.set_title(
+                    'Visualisasi Distribusi target_nominal'
+                )
+
+                ax.set_xlabel('Target Nominal (Rp)')
+                ax.set_ylabel('Frekuensi')
+
+                ax.grid(alpha=0.3)
+
+                st.pyplot(fig)
+
+            with col_text2:
+
                 st.markdown("""
-                **Insight Distribusi & Outlier:**
-                - **Right-Skewed Data:** Data nominal transaksi dan target tabungan riil memiliki sebaran awal yang sangat miring (*right-skewed*) dengan rentang ekstrem dari Rp 5.000 hingga Rp 9 Miliar.
-                - **Distorsi Nilai Tengah:** Kondisi pencilan (*outlier*) atas ini terlihat dari nilai rata-rata (*mean*) setoran sebesar **Rp 4.545.024**, padahal nilai tengah (*median*) riil mayoritas pengguna berada jauh di bawahnya, yaitu **Rp 88.321**.
-                - **Urgensi Skala Log:** Grafik *boxplot* di samping membuktikan perlunya penerapan transformasi logaritma (`log1p`) untuk menstabilkan varians variabel keuangan sebelum diproses oleh algoritma regresi.
+                **Insight Target Nominal:**
+                - Distribusi target nominal cenderung right-skewed.
+                - Sebagian besar target berada pada nominal rendah.
+                - Terdapat beberapa outlier dengan target sangat besar.
                 """)
-    # ==========================================
-    # TAB 2: VISUALISASI PERTANYAAN BISNIS
-    # ==========================================
+    
+    # Visualisasi Pertanyaan Bisnis
     with tab2:
-        st.subheader("Menjawab Pertanyaan Bisnis")
-        col_pertanyaan1, col_pertanyaan2 = st.columns(2)
-        
-        # Pertanyaan 1 
-        with col_pertanyaan1:
-            st.write("**1. Bagaimana perbandingan rata-rata nominal yang ditabung saat Hari Kerja vs Akhir Pekan?**")
-            
-            # Hitung log1p ulang untuk memastikan data yang digunakan sudah dalam bentuk logaritma (meskipun sudah dilakukan di fungsi load_data, ini untuk memastikan jika ada perubahan)
-            df_temp_log = df.copy()
-            df_temp_log['log_nominal'] = np.log1p(df_temp_log['nominal_nabung'])
-            rata_hari_log = df_temp_log.groupby('tipe_hari')['log_nominal'].mean().reset_index()
-            
-            fig_hari = px.bar(
-                rata_hari_log, x='tipe_hari', y='log_nominal', text_auto='.5f', color='tipe_hari',
-                color_discrete_sequence=['#3b82f6', '#10b981'],
-                labels={'tipe_hari': 'Tipe Hari', 'log_nominal': 'Rata-rata Nominal (Log)'}
-            )
-            fig_hari.update_layout(margin=dict(t=30, b=0, l=0, r=0), showlegend=False)
-            st.plotly_chart(fig_hari, use_container_width=True)
-            
-            val_hk = rata_hari_log[rata_hari_log['tipe_hari'] == 'Hari Kerja']['log_nominal'].values[0]
-            val_hl = rata_hari_log[rata_hari_log['tipe_hari'] == 'Akhir Pekan']['log_nominal'].values[0]
-            
-            # Kotak Insight persis gambar
-            st.markdown(f"""
-            <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
-                <h4 style="margin-top: 0; color: #31333F;">Insight & Kesimpulan :</h4>
-                <ul style="color: #31333F; margin-bottom: 0;">
-                    <li>Hari Kerja memiliki rata-rata nominal tabungan sebesar {val_hk:.5f}</li>
-                    <li>Akhir Pekan memiliki rata-rata nominal tabungan sebesar {val_hl:.5f}</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
 
-        # Pertanyaan 2 
-        with col_pertanyaan2:
-            st.write("**2. Apakah User Segment (Kasta Keuangan) mempengaruhi konsistensi mencapai target?**")
-            
-            # Melakukan segmentasi (Micro/Small/Medium diringkas ke Low/Medium vs Sultan ke High) berdasarkan notebook
-            df_wealth = df.copy()
-            df_wealth['is_success'] = (df_wealth['sisa_target'] <= 0).astype(int)
-            df_wealth['wealth_segment'] = pd.cut(
-                df_wealth['target_nominal'], 
-                bins=[-1, 10000000, float('inf')], 
-                labels=['Low & Medium Wealth', 'High Wealth']
-            )
-            
-            success_rate = df_wealth.groupby('wealth_segment')['is_success'].mean() * 100
-            success_rate = success_rate.reset_index()
-            
-            fig_wealth = px.bar(
-                success_rate, x='wealth_segment', y='is_success', text_auto='.1f', color='wealth_segment',
-                color_discrete_sequence=['#f59e0b', '#8b5cf6'],
-                labels={'wealth_segment': 'Segmen Pengguna', 'is_success': 'Success Rate (%)'}
-            )
-            fig_wealth.update_layout(margin=dict(t=30, b=0, l=0, r=0), showlegend=False)
-            st.plotly_chart(fig_wealth, use_container_width=True)
-            
+        sub_Q1, sub_Q2 = st.tabs([
+            "Pertanyaan 1",
+            "Pertanyaan 2"
+        ])
+        # Pertanyaan bisnis 1
+        with sub_Q1:
+
             st.markdown("""
-            <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
-                <h4 style="margin-top: 0; color: #31333F;">Insight & Kesimpulan :</h4>
-                <ul style="color: #31333F; margin-bottom: 0;">
-                    <li><b>Low & Medium Wealth:</b> Tidak ada data keberhasilan di bulan terakhir (indikasi aktivitas sangat pasif).</li>
-                    <li><b>High Wealth:</b> Meski kecil, kelompok ini mencatatkan tingkat keberhasilan target (Success Rate sekitar 2%).</li>
-                    <li><b>Ya</b>, User Segment mempengaruhi konsistensi mencapai Target Tabungan.</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            ### Q1
+            "Dari 10 nama_goal dengan frekuensi tertinggi, mana yang memiliki rata-rata persentase pencapaian terendah untuk tabungan 'Belum Selesai' yang sudah berjalan lebih dari 180 hari?"
+            """)
 
-    # ==========================================
-    # TAB 4: DATA
-    # ==========================================
-    with tab4:
-        st.subheader("Tinjauan Dataset (Cleaned)")
-        st.write("Tabel di bawah menampilkan data tabungan bersih yang nilai logaritma-nya telah dikembalikan (*inverse*) menjadi Rupiah.")
-        st.dataframe(df, use_container_width=True)
+            col_chart_q1, col_text_q1 = st.columns([1.6, 1])
+
+            with col_chart_q1:
+
+                df_uni = (
+                    df.sort_values('tanggal_nabung')
+                    .groupby('id_tabungan')
+                    .last()
+                    .reset_index()
+                )
+
+                df_belum_selesai = df_uni[
+                    (df_uni['hasil_akhir'] == 'Belum Selesai') &
+                    (df_uni['lama_menabung'] > 180)
+                ].copy()
+
+                top10_goals = (
+                    df_belum_selesai['nama_goal']
+                    .value_counts()
+                    .head(10)
+                    .index
+                )
+
+                df_top10 = df_belum_selesai[
+                    df_belum_selesai['nama_goal'].isin(top10_goals)
+                ]
+
+                mean_per_goal = (
+                    df_top10
+                    .groupby('nama_goal')['persentase_terkumpul']
+                    .mean()
+                    .sort_values()
+                )
+
+                fig, ax = plt.subplots(figsize=(12, 7))
+
+                colors = plt.cm.RdYlGn_r(
+                    mean_per_goal.values / 100
+                )
+
+                bars = ax.barh(
+                    mean_per_goal.index,
+                    mean_per_goal.values,
+                    color=colors,
+                    edgecolor='black'
+                )
+
+                for bar, val in zip(
+                    bars,
+                    mean_per_goal.values
+                ):
+
+                    ax.text(
+                        val + 1,
+                        bar.get_y() + bar.get_height()/2,
+                        f'{val:.1f}%',
+                        va='center',
+                        fontsize=10,
+                        fontweight='bold'
+                    )
+
+                ax.axvline(
+                    x=50,
+                    color='red',
+                    linestyle='--',
+                    linewidth=2,
+                    alpha=0.7,
+                    label='Target 50%'
+                )
+
+                ax.set_xlabel(
+                    'Rata-rata Persentase Terkumpul (%)',
+                    fontsize=12
+                )
+
+                ax.set_title(
+                    'Q1: Rata-rata Persentase Pencapaian per Goal\n(Status: Belum Selesai | Top 10 Goal)',
+                    fontsize=14,
+                    fontweight='bold'
+                )
+
+                ax.legend()
+
+                ax.grid(
+                    axis='x',
+                    alpha=0.3
+                )
+
+                plt.tight_layout()
+
+                st.pyplot(fig)
+
+            with col_text_q1:
+
+                st.markdown("""
+                ### Insight
+                - Dana Darurat adalah goal yang paling tertinggal pencapaiannya meskipun termasuk dalam top 10 paling sering dipilih.
+                - Hal ini menunjukkan bahwa user lebih konsisten menabung untuk tujuan yang menyenangkan (kamera, PC gaming, liburan) dibandingkan kebutuhan esensial seperti dana darurat.
+                - Ada indikasi bahwa motivasi emosional (reward, lifestyle) lebih kuat dibanding motivasi rasional (kebutuhan darurat).
+                """)
+        # Pertanyaan bisnis 2
+        with sub_Q2:
+
+            st.markdown("""
+            ### Q2
+            "Bagaimana distribusi jarak_hari_nabung (dalam hari) untuk tabungan dengan status 'Selesai pada tahun 2022-2025, dan berapa median jarak antar setoran?"
+            """)
+
+            df_q2 = df[
+                (df['hasil_akhir'] == 'Selesai') &
+                (df['tahun'].between(2022, 2025))
+            ].copy()
+
+            median_value = df_q2[
+                'jarak_hari_nabung'
+            ].median()
+
+            fig, (ax1, ax2) = plt.subplots(
+                1,
+                2,
+                figsize=(14, 5)
+            )
+
+            ax1.hist(
+                df_q2['jarak_hari_nabung'],
+                bins=30,
+                edgecolor='black',
+                color='steelblue',
+                alpha=0.7
+            )
+
+            ax1.axvline(
+                median_value,
+                color='red',
+                linestyle='--',
+                linewidth=2,
+                label=f'Median: {median_value:.0f} hari'
+            )
+
+            ax1.set_xlabel('Jarak Hari Nabung')
+            ax1.set_ylabel('Frekuensi')
+            ax1.set_title('Distribusi Jarak Nabung')
+
+            ax1.legend()
+
+            ax2.boxplot(
+                df_q2['jarak_hari_nabung'],
+                vert=False,
+                patch_artist=True,
+                boxprops=dict(
+                    facecolor='steelblue',
+                    alpha=0.7
+                )
+            )
+
+            ax2.axvline(
+                median_value,
+                color='red',
+                linestyle='--',
+                linewidth=2,
+                label=f'Median: {median_value:.0f} hari'
+            )
+
+            ax2.set_xlabel('Jarak Hari Nabung')
+            ax2.set_title('Ringkasan Statistik')
+
+            ax2.legend()
+
+            plt.suptitle(
+                'Q2: Jarak Antar Setoran',
+                fontsize=14,
+                fontweight='bold'
+            )
+
+            plt.tight_layout()
+
+            st.pyplot(fig)
+
+            st.markdown("""
+            ### Insight
+
+            - Pola umum: pengguna yang berhasil menyelesaikan tabungan di periode 2022–2025 cenderung menabung sekitar 2–3 minggu sekali.
+            - Outlier menunjukkan adanya perilaku ekstrem: sebagian langsung menyelesaikan dalam waktu singkat (0 hari, sekali setor besar), sebagian lain menabung sangat jarang.
+            - Konsistensi menabung dalam interval ≤ 1 bulan tampaknya menjadi faktor penting keberhasilan.
+            """)
+    # Dataset
+    with tab3:
+
+        st.header("Data Transaksi")
+
+        csv = df.to_csv(index=False)
+
+        st.download_button(
+            'Download Dataset (CSV)',
+            csv,
+            'data_keuangan.csv',
+            'text/csv'
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
 
 if __name__ == "__main__":
-    tampilan_regresi() 
+    tampilan_regresi()
