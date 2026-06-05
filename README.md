@@ -41,7 +41,7 @@ Dashboard ini berfokus pada melacak perkembangan tabungan pengguna, pola waktu m
 ## 📁 Struktur Proyek
 
 ```text
-CS-Streamlit/
+DS-Streamlit/
 ├── app.py                  # Entrypoint utama aplikasi Streamlit (navigasi & konfigurasi)
 ├── requirements.txt        # Daftar dependency pustaka Python yang dibutuhkan
 └── pages/
